@@ -1,0 +1,20 @@
+# Ignore everything
+*
+
+# Allow folders
+!*/
+
+# Source code
+!*.cpp
+
+# Flowcharts
+!*.jpg
+!*.jpeg
+!*.png
+
+# Laboratory reports
+!*.docx
+
+# Repository files
+!README.md
+!.gitignore
