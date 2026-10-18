@@ -310,19 +310,7 @@ Result gradientMethod(const string& metric,
             }
         }
 
-        result.table.push_back(
-            {
-                k,
-                x,
-                currentValue,
-                gradient,
-                gradientLength,
-                direction,
-                step,
-                reductions,
-                trialValue,
-                "accepted"
-            });
+        result.table.push_back( {k,  x, currentValue,  gradient,  gradientLength, direction, step, reductions, trialValue, "accepted"});
 
         x = trialPoint;
         currentValue = trialValue;
@@ -539,12 +527,7 @@ int main()
         {
             for (double step : initialSteps)
             {
-                Result result =
-                    gradientMethod(
-                        metric,
-                        initialPoint,
-                        step,
-                        EPSILON);
+                Result result = gradientMethod( metric, initialPoint, step, EPSILON);
 
                 results.push_back(result);
                 printIterationTable(result);
