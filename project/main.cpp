@@ -11,7 +11,7 @@ int main()
 {
     try
     {
-        Image clean = prepareProject();
+        ProjectData data = prepareProject();
 
         return 0;
     }
