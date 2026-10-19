@@ -1,17 +1,19 @@
 /*
-    main.cpp — запуск етапів проєкту
-    та обробка помилок.
+    main.cpp — запуск підготовки та лабораторних робіт.
 */
 #include <iostream>
 #include <exception>
 
 #include "src/preparation.h"
+#include "src/lab1.h"
 
 int main()
 {
     try
     {
         ProjectData data = prepareProject();
+
+        runLab1(data.clean, data.noise.noisy);
 
         return 0;
     }
