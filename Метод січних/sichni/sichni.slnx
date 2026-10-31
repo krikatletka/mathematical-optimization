@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="sichni/sichni.vcxproj" Id="6aa165fb-a56c-4524-8607-f70c66e7bc4a" />
+</Solution>

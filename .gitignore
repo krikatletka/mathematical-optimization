@@ -1,20 +1,30 @@
-# Ignore everything
-*
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.vsidx
+*.ipch
+*.pdb
+*.idb
+*.obj
+*.ilk
+*.tlog
+*.lastbuildstate
+*.log
+*.exe
+*.exe.recipe
 
-# Allow folders
-!*/
+# Build directories
+**/x64/Debug/
+**/x64/Release/
+**/Debug/
+**/Release/
 
-# Source code
-!*.cpp
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
 
-# Flowcharts
-!*.jpg
-!*.jpeg
-!*.png
-
-# Laboratory reports
-!*.docx
-
-# Repository files
-!README.md
-!.gitignore
+# Generated outputs
+outputs/

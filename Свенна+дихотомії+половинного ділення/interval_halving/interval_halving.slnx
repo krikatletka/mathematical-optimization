@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="interval_halving/interval_halving.vcxproj" Id="9b377697-6d7c-4bc6-840f-0c038e4cc041" />
+</Solution>

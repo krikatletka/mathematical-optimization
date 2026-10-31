@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Dihotomie/Dihotomie.vcxproj" Id="bde0f66e-f171-4e5a-aefd-76ed7a5b91cb" />
+</Solution>
