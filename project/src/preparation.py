@@ -1,10 +1,5 @@
-"""
-Частина 0 — підготовка проєкту.
 
-Завантажує початкове зображення, додає шум варіанта 8,
-зберігає результати та обчислює MSE і PSNR.
-"""
-
+from src.clean_image import generate_clean_image
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -48,7 +43,22 @@ def prepare_project() -> ProjectData:
 
     Path("outputs").mkdir(exist_ok=True)
 
-    clean = load_image("input/00_clean.png")
+    clean = generate_clean_image(IMAGE_SIZE)
+
+    save_image(
+        clean,
+        "outputs/00_clean.png",
+    )
+
+    print("\nClean image 5x5 check:")
+
+    for i in range(60, 65):
+        print(
+            " ".join(
+                f"{clean[i, j]:.4f}"
+                for j in range(60, 65)
+            )
+        )
 
     if clean.shape != (IMAGE_SIZE, IMAGE_SIZE):
         raise ValueError(
@@ -65,10 +75,20 @@ def prepare_project() -> ProjectData:
         "outputs/00_clean_copy.png"
     )
 
-    if not np.array_equal(clean, copied_image):
+    max_save_error = float(
+        np.max(np.abs(clean - copied_image))
+    )
+
+    if max_save_error > 1.0 / 255.0:
         raise RuntimeError(
-            "Saved image pixels do not match source pixels."
+            "Saved image differs from the generated image too much: "
+            f"{max_save_error:.9e}"
         )
+
+    print(
+        "PNG round-trip check: PASSED, "
+        f"maximum rounding error = {max_save_error:.9e}"
+    )
 
     print("\nSource image = input/00_clean.png")
     print(

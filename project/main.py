@@ -1,9 +1,4 @@
-"""
-Головний файл проєкту відновлення цифрового зображення.
 
-Послідовно запускає підготовку зображення
-та лабораторні роботи №1–4.
-"""
 
 from src.preparation import prepare_project
 from src.lab1 import run_lab1
@@ -16,19 +11,14 @@ from src.variant import LAMBDA0
 
 
 def main():
-    # Частина 0:
-    # завантаження зображення та додавання шуму.
+
     project = prepare_project()
 
-    # Лабораторна робота №1:
-    # локалізація мінімуму методом Свенна.
     lab1_result = run_lab1(
         clean=project.clean,
         noisy=project.noisy,
     )
 
-    # Лабораторна робота №2:
-    # дихотомія та золотий переріз.
     lab2_result = run_lab2(
         project.clean,
         project.noisy,
@@ -36,23 +26,19 @@ def main():
         lab1_result.b,
     )
 
-    # Лабораторна робота №3:
-    # методи Нелдера—Міда та Пауелла.
+
     lab3_result = run_lab3(
         clean=project.clean,
         noisy=project.noisy,
         gaussian_sigma=lab2_result.x,
     )
 
-    # Лабораторна робота №4:
-    # градієнтні методи.
     lab4_result = run_lab4(
         clean=project.clean,
         noisy=project.noisy,
         lambda0=LAMBDA0,
     )
 
-    # Підсумкові результати.
     print("\nPROJECT COMPLETE")
 
     print(

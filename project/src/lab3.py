@@ -135,86 +135,212 @@ def nelder_mead(function, x0, edge, tol=1e-7, max_iter=200):
         "path": np.asarray(path),
     }
 
+def _alpha_bounds(x, direction):
+    """Допустимый интервал alpha: LO <= x + alpha*d <= HI."""
+    left = -float("inf")
+    right = float("inf")
+
+    for i in range(len(x)):
+        if abs(direction[i]) < 1e-15:
+            continue
+
+        a1 = (LO[i] - x[i]) / direction[i]
+        a2 = (HI[i] - x[i]) / direction[i]
+
+        left = max(left, min(a1, a2))
+        right = min(right, max(a1, a2))
+
+    return left, right
+
 
 def _golden_line(function, x, direction, eps=1e-4):
-    def phi(alpha):
-        return function(x + alpha * direction)
+    """Метод Свенна + золотий переріз уздовж заданого напрямку."""
+    x = np.asarray(x, dtype=float)
+    direction = np.asarray(direction, dtype=float)
 
-    # Метод Свенна для локалізації мінімуму вздовж напряму.
-    alpha0, step = 0.0, 0.1
-    f0, fp, fm = phi(alpha0), phi(step), phi(-step)
-    if fp >= f0 and fm >= f0:
-        left, right = -step, step
+    if np.linalg.norm(direction) < 1e-15:
+        return 0.0
+
+    alpha_min, alpha_max = _alpha_bounds(x, direction)
+
+    def phi(alpha):
+        alpha = float(np.clip(alpha, alpha_min, alpha_max))
+        point = x + alpha * direction
+        return function(point)
+
+    # Метод Свенна
+    alpha0 = float(np.clip(0.0, alpha_min, alpha_max))
+    step = 0.1
+
+    f0 = phi(alpha0)
+
+    alpha_right = float(np.clip(alpha0 + step, alpha_min, alpha_max))
+    alpha_left = float(np.clip(alpha0 - step, alpha_min, alpha_max))
+
+    f_right = phi(alpha_right)
+    f_left = phi(alpha_left)
+
+    if f_right >= f0 and f_left >= f0:
+        left, right = sorted((alpha_left, alpha_right))
+
     else:
-        if fm < fp:
+        if f_left < f_right:
             step = -step
-            previous, current = 0.0, step
-            f_current = fm
+            previous = alpha0
+            current = alpha_left
+            f_current = f_left
         else:
-            previous, current = 0.0, step
-            f_current = fp
+            previous = alpha0
+            current = alpha_right
+            f_current = f_right
+
+        left = min(previous, current)
+        right = max(previous, current)
+
         for power in range(1, 30):
-            candidate = current + step * (2**power)
+            candidate = current + step * (2 ** power)
+            candidate = float(np.clip(candidate, alpha_min, alpha_max))
+
+            # Досягнуто межі допустимої області.
+            if abs(candidate - current) < 1e-15:
+                left, right = sorted((previous, current))
+                break
+
             f_candidate = phi(candidate)
+
             if f_candidate >= f_current:
                 left, right = sorted((previous, candidate))
                 break
-            previous, current, f_current = current, candidate, f_candidate
+
+            previous = current
+            current = candidate
+            f_current = f_candidate
         else:
             left, right = sorted((previous, current))
 
+    if right - left <= eps:
+        return (left + right) / 2.0
+
+    # Метод золотого перерізу
     tau = (math.sqrt(5.0) - 1.0) / 2.0
-    a, b = left, right
+
+    a = left
+    b = right
+
     x1 = a + (1.0 - tau) * (b - a)
     x2 = a + tau * (b - a)
-    f1, f2 = phi(x1), phi(x2)
+
+    f1 = phi(x1)
+    f2 = phi(x2)
+
     while b - a > eps:
         if f1 <= f2:
-            b, x2, f2 = x2, x1, f1
+            b = x2
+            x2 = x1
+            f2 = f1
+
             x1 = a + (1.0 - tau) * (b - a)
             f1 = phi(x1)
         else:
-            a, x1, f1 = x1, x2, f2
+            a = x1
+            x1 = x2
+            f1 = f2
+
             x2 = a + tau * (b - a)
             f2 = phi(x2)
+
     return (a + b) / 2.0
 
-
 def powell(function, x0, tol=1e-4, max_cycles=20):
-    x = np.asarray(x0, dtype=float).copy()
-    directions = np.eye(2)
-    rows, path = [], [x.copy()]
+    x = np.clip(np.asarray(x0, dtype=float), LO, HI)
+
+    # Початкові координатні напрямки.
+    directions = np.eye(2, dtype=float)
+
+    rows = []
+    path = [x.copy()]
 
     for cycle in range(1, max_cycles + 1):
-        start = x.copy()
+        cycle_start = x.copy()
         f_start = function(x)
+
         gains = []
+
+        # Пошук уздовж усіх поточних напрямків.
         for direction in directions:
-            before = function(x)
-            alpha = _golden_line(function, x, direction)
-            x = x + alpha * direction
-            after = function(x)
-            gains.append(before - after)
+            f_before = function(x)
+
+            alpha = _golden_line(
+                function,
+                x,
+                direction,
+                eps=tol,
+            )
+
+            x = np.clip(x + alpha * direction, LO, HI)
+            f_after = function(x)
+
+            gains.append(f_before - f_after)
             path.append(x.copy())
 
-        shift = x - start
+        # Новий напрямок Пауелла.
+        shift = x - cycle_start
+        shift_norm = np.linalg.norm(shift)
+
+        if shift_norm > 1e-15:
+            new_direction = shift.copy()
+
+            # ВАЖЛИВО: додатковий лінійний пошук
+            # уздовж нового напрямку.
+            alpha = _golden_line(
+                function,
+                x,
+                new_direction,
+                eps=tol,
+            )
+
+            x = np.clip(
+                x + alpha * new_direction,
+                LO,
+                HI,
+            )
+
+            path.append(x.copy())
+
+            # Замінюємо напрямок, який дав найбільше зменшення.
+            worst_direction = int(np.argmax(gains))
+            directions[worst_direction] = new_direction
+
         f_end = function(x)
-        rows.append((cycle, *x, f_end, np.linalg.norm(shift)))
-        if np.linalg.norm(shift) <= tol or abs(f_start - f_end) <= tol * max(1.0, abs(f_start)):
+
+        rows.append(
+            (
+                cycle,
+                x[0],
+                x[1],
+                f_end,
+                np.linalg.norm(x - cycle_start),
+            )
+        )
+
+        # Обидві умови мають виконуватися одночасно.
+        point_change = np.linalg.norm(x - cycle_start)
+        function_change = abs(f_start - f_end)
+
+        if point_change <= tol and function_change <= tol:
             break
-        if np.linalg.norm(shift) > 0.0:
-            directions[int(np.argmax(gains))] = shift / np.linalg.norm(shift)
+
+        # Перезапуск напрямків кожні три цикли.
         if cycle % 3 == 0:
-            directions = np.eye(2)
+            directions = np.eye(2, dtype=float)
 
     return {
-        "x": x,
-        "f": function(x),
+        "x": x.copy(),
+        "f": float(function(x)),
         "cycles": len(rows),
         "rows": rows,
         "path": np.asarray(path),
     }
-
 
 def _write_csv(path, header, rows):
     with open(path, "w", newline="", encoding="utf-8") as file:

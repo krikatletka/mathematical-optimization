@@ -1,4 +1,4 @@
 Method,Iterations,Nf,Ngrad,Energy,PSNR,Converged
-Gradient descent,639,640,640,301.424497539,18.027818,yes
-Heavy ball optimal,257,258,258,301.424497539,18.027818,yes
-Nesterov strongly convex,102,103,103,301.424497539,18.027818,yes
+Gradient descent,639,640,640,301.332786720,18.033656,yes
+Heavy ball optimal,257,258,258,301.332786720,18.033656,yes
+Nesterov strongly convex,102,103,103,301.332786720,18.033656,yes

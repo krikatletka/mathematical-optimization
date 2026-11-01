@@ -1,8 +1,4 @@
-"""
-Обгортка над цільовою функцією.
 
-Oracle рахує кількість обчислень функції Nf.
-"""
 
 from collections.abc import Callable
 
