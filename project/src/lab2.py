@@ -45,22 +45,52 @@ class SearchResult:
     iterations: int
     evaluations: int
     rows: list[SearchRow]
+    converged: bool = True
 
+def _validate_search(a, b, epsilon, max_iter):
+    if not (
+        math.isfinite(a)
+        and math.isfinite(b)
+        and a < b
+    ):
+        raise ValueError(
+            "Expected finite interval boundaries a < b."
+        )
 
+    if not math.isfinite(epsilon) or epsilon <= 0.0:
+        raise ValueError(
+            "Epsilon must be finite and positive."
+        )
+
+    if not isinstance(max_iter, int) or max_iter <= 0:
+        raise ValueError(
+            "Max_iter must be a positive integer."
+        )
+    
 def dichotomy(
     oracle: Oracle,
     a: float,
     b: float,
     epsilon: float,
+    delta=None,
+    max_iter: int = 500,
 ) -> SearchResult:
     """Метод дихотомії."""
 
-    delta = epsilon / 3.0
+    _validate_search(a, b, epsilon, max_iter)
+
+    if delta is None:
+        delta = epsilon / 3.0
+
+    if not math.isfinite(delta) or not 0.0 < delta <= epsilon:
+        raise ValueError(
+            "Delta must satisfy 0 < delta <= epsilon."
+        )
     calls_before = oracle.calls
     rows: list[SearchRow] = []
     iteration = 0
 
-    while b - a > epsilon:
+    while b - a > epsilon and iteration < max_iter:
         old_a = a
         old_b = b
 
@@ -106,6 +136,7 @@ def dichotomy(
         iterations=iteration,
         evaluations=oracle.calls - calls_before,
         rows=rows,
+        converged=(b - a <= epsilon),
     )
 
 
@@ -114,8 +145,11 @@ def golden_section(
     a: float,
     b: float,
     epsilon: float,
+    max_iter: int = 500,
 ) -> SearchResult:
     """Метод золотого перерізу."""
+
+    _validate_search(a, b, epsilon, max_iter)
 
     calls_before = oracle.calls
     rows: list[SearchRow] = []
@@ -128,7 +162,7 @@ def golden_section(
 
     iteration = 0
 
-    while b - a > epsilon:
+    while b - a > epsilon and iteration < max_iter:
         old_a = a
         old_b = b
         old_x1 = x1
@@ -198,6 +232,7 @@ def golden_section(
         iterations=iteration,
         evaluations=oracle.calls - calls_before,
         rows=rows,
+        converged=(b - a <= epsilon),
     )
 
 
@@ -257,6 +292,14 @@ def print_search_table(
     )
     print(f"Iterations = {result.iterations}")
     print(f"Nf = {result.evaluations}")
+    print(
+        "Status = "
+        + (
+            "required accuracy reached"
+            if result.converged
+            else "iteration limit reached; accuracy not reached"
+        )
+    )
 
 
 def save_search_csv(

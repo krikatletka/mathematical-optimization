@@ -92,7 +92,7 @@ def prepare_project() -> ProjectData:
 
     print("\nSource image = input/00_clean.png")
     print(
-        f"Image size = {clean.shape[1]} x {clean.shape[0]}"
+        
     )
     print(f"Pixels = {clean.size}")
     print("Saved copy = outputs/00_clean_copy.png")

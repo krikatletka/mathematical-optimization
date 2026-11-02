@@ -19,13 +19,15 @@ from src.lab3 import (
     bilateral_filter,
     nelder_mead,
     powell,
+    _alpha_bounds,
 )
 from src.preparation import prepare_project
 
 
-GAUSSIAN_SIGMA = 0.668953998
-SIMPLEX_EDGE = 0.6976
-NOISE_SIGMA = 0.1449
+from src.variant import NOISE_SIGMA, SIMPLEX_EDGE
+
+
+GAUSSIAN_SIGMA = 0.6691491203738591
 
 
 def image_psnr(image: np.ndarray, reference: np.ndarray) -> float:
@@ -84,7 +86,7 @@ def run_base_methods(clean: np.ndarray, noisy: np.ndarray) -> tuple[dict, dict]:
     nm["nf"] = objective_nm.calls
 
     objective_pw = Objective2(noisy, clean)
-    pw = powell(objective_pw, x0, tol=1e-4)
+    pw = powell(objective_pw, x0, tol=1e-4, line_eps=1e-4)
     pw["nf"] = objective_pw.calls
 
     return nm, pw
@@ -124,98 +126,136 @@ def experiment_simplex_size(clean: np.ndarray, noisy: np.ndarray) -> list[list[o
 
 
 def golden_line_with_counts(
-    function: Objective2,
-    x: np.ndarray,
-    direction: np.ndarray,
-    eps: float = 1e-4,
-) -> tuple[float, int, int]:
-    """Лінійний пошук із окремим підрахунком звернень Свенна і золотого перерізу."""
+    function,
+    x,
+    direction,
+    eps=1e-4,
+):
+    """Лінійний пошук із підрахунком звернень за етапами."""
+
+    x = np.asarray(x, dtype=float)
+    direction = np.asarray(direction, dtype=float)
+
+    if np.linalg.norm(direction) < 1e-15:
+        return 0.0, 0, 0
+
+    alpha_min, alpha_max = _alpha_bounds(x, direction)
+
     svenn_calls = 0
     golden_calls = 0
+    phase = "svenn"
 
-    def phi_svenn(alpha: float) -> float:
-        nonlocal svenn_calls
-        svenn_calls += 1
-        return function(x + alpha * direction)
+    def phi(alpha):
+        nonlocal svenn_calls, golden_calls
 
-    def phi_golden(alpha: float) -> float:
-        nonlocal golden_calls
-        golden_calls += 1
-        return function(x + alpha * direction)
+        alpha = float(np.clip(alpha, alpha_min, alpha_max))
 
-    alpha0, step = 0.0, 0.1
-    f0 = phi_svenn(alpha0)
-    fp = phi_svenn(step)
-    fm = phi_svenn(-step)
-
-    if fp >= f0 and fm >= f0:
-        left, right = -step, step
-    else:
-        if fm < fp:
-            step = -step
-            previous, current = 0.0, step
-            f_current = fm
+        if phase == "svenn":
+            svenn_calls += 1
         else:
-            previous, current = 0.0, step
-            f_current = fp
+            golden_calls += 1
+
+        return function(x + alpha * direction)
+
+    alpha0 = float(np.clip(0.0, alpha_min, alpha_max))
+    step = 0.1
+
+    f0 = phi(alpha0)
+
+    alpha_right = float(
+        np.clip(alpha0 + step, alpha_min, alpha_max)
+    )
+    alpha_left = float(
+        np.clip(alpha0 - step, alpha_min, alpha_max)
+    )
+
+    f_right = phi(alpha_right)
+    f_left = phi(alpha_left)
+
+    if f_right >= f0 and f_left >= f0:
+        left, right = sorted((alpha_left, alpha_right))
+    else:
+        if f_left < f_right:
+            step = -step
+            previous = alpha0
+            current = alpha_left
+            f_current = f_left
+        else:
+            previous = alpha0
+            current = alpha_right
+            f_current = f_right
 
         for power in range(1, 30):
-            candidate = current + step * (2**power)
-            f_candidate = phi_svenn(candidate)
+            candidate = float(
+                np.clip(
+                    current + step * (2**power),
+                    alpha_min,
+                    alpha_max,
+                )
+            )
+
+            if abs(candidate - current) < 1e-15:
+                left, right = sorted((previous, current))
+                break
+
+            f_candidate = phi(candidate)
+
             if f_candidate >= f_current:
                 left, right = sorted((previous, candidate))
                 break
-            previous, current, f_current = current, candidate, f_candidate
+
+            previous = current
+            current = candidate
+            f_current = f_candidate
         else:
             left, right = sorted((previous, current))
 
+    if right - left <= eps:
+        return (left + right) / 2.0, svenn_calls, golden_calls
+
+    phase = "golden"
     tau = (math.sqrt(5.0) - 1.0) / 2.0
     a, b = left, right
+
     x1 = a + (1.0 - tau) * (b - a)
     x2 = a + tau * (b - a)
-    f1 = phi_golden(x1)
-    f2 = phi_golden(x2)
+    f1 = phi(x1)
+    f2 = phi(x2)
 
     while b - a > eps:
         if f1 <= f2:
             b, x2, f2 = x2, x1, f1
             x1 = a + (1.0 - tau) * (b - a)
-            f1 = phi_golden(x1)
+            f1 = phi(x1)
         else:
             a, x1, f1 = x1, x2, f2
             x2 = a + tau * (b - a)
-            f2 = phi_golden(x2)
+            f2 = phi(x2)
 
     return (a + b) / 2.0, svenn_calls, golden_calls
 
+def experiment_powell_cycle(clean, noisy):
+    """Розкладає ціну повного першого циклу Пауелла."""
 
-def experiment_powell_cycle(clean: np.ndarray, noisy: np.ndarray) -> list[list[object]]:
-    """Дослід 2: розкладає ціну першого циклу Пауелла на складові."""
     print("\nEXPERIMENT 2 - COST OF THE FIRST POWELL CYCLE")
 
     objective = Objective2(noisy, clean)
-    x = initial_point()
-    directions = np.eye(2)
-    rows: list[list[object]] = []
+    x = np.clip(initial_point(), LO, HI)
+    cycle_start = x.copy()
 
-    objective(x)  # перевірка значення на початку циклу
-    check_calls = 1
-    total_svenn = 0
-    total_golden = 0
+    f_start = objective(x)
+    cycle_checks = 1
+    rows = []
 
-    for number, direction in enumerate(directions, start=1):
+    for number, direction in enumerate(np.eye(2), start=1):
         objective(x)
-        check_calls += 1
 
         alpha, svenn_calls, golden_calls = golden_line_with_counts(
-            objective, x, direction
+            objective, x, direction, eps=1e-4
         )
-        x = x + alpha * direction
 
-        objective(x)
-        check_calls += 1
-        total_svenn += svenn_calls
-        total_golden += golden_calls
+        x = np.clip(x + alpha * direction, LO, HI)
+        f_after = objective(x)
 
         rows.append([
             f"Direction {number}",
@@ -225,24 +265,67 @@ def experiment_powell_cycle(clean: np.ndarray, noisy: np.ndarray) -> list[list[o
             svenn_calls + golden_calls + 2,
         ])
 
-    objective(x)  # перевірка значення наприкінці циклу
-    check_calls += 1
+    shift = x - cycle_start
+    shift_norm = float(np.linalg.norm(shift))
 
-    rows.append(["Cycle start/end", 0, 0, 2, 2])
+    stopped = (
+        shift_norm < 1e-4
+        or abs(f_start - f_after)
+        <= 1e-12 * (1.0 + abs(f_after))
+    )
+
+    if not stopped:
+        if shift_norm > 1e-15:
+            new_direction = shift / shift_norm
+
+            alpha, svenn_calls, golden_calls = golden_line_with_counts(
+                objective, x, new_direction, eps=1e-4
+            )
+
+            x = np.clip(x + alpha * new_direction, LO, HI)
+
+            rows.append([
+                "New direction",
+                svenn_calls,
+                golden_calls,
+                0,
+                svenn_calls + golden_calls,
+            ])
+
+        objective(x)
+        cycle_checks += 1
+
+    rows.append([
+        "Cycle start/end",
+        0,
+        0,
+        cycle_checks,
+        cycle_checks,
+    ])
+
     rows.append([
         "TOTAL",
-        total_svenn,
-        total_golden,
-        check_calls,
+        sum(row[1] for row in rows),
+        sum(row[2] for row in rows),
+        sum(row[3] for row in rows),
         objective.calls,
     ])
 
     headers = ["Part", "Svenn", "Golden", "Checks", "Total"]
     print_table(headers, rows)
-    print(f"Point after first cycle = ({x[0]:.6f}; {x[1]:.6f})")
-    write_csv("outputs/lab3_experiment_powell_cycle.csv", headers, rows)
-    return rows
 
+    print(
+        f"Point after first cycle = "
+        f"({x[0]:.6f}; {x[1]:.6f})"
+    )
+
+    write_csv(
+        "outputs/lab3_experiment_powell_cycle.csv",
+        headers,
+        rows,
+    )
+
+    return rows
 
 def experiment_powell_tolerance(
     clean: np.ndarray,
@@ -253,7 +336,7 @@ def experiment_powell_tolerance(
     print("\nEXPERIMENT 3 - POWELL STOPPING TOLERANCE")
 
     objective = Objective2(noisy, clean)
-    strict = powell(objective, initial_point(), tol=1e-7)
+    strict = powell(objective, initial_point(), tol=1e-7, line_eps=1e-4)
     strict["nf"] = objective.calls
 
     rows = [
@@ -264,6 +347,7 @@ def experiment_powell_tolerance(
             base_powell["cycles"],
             base_powell["nf"],
             f"{base_powell['f']:.9f}",
+            base_powell["converged"],
         ],
         [
             "1e-7",
@@ -272,10 +356,11 @@ def experiment_powell_tolerance(
             strict["cycles"],
             strict["nf"],
             f"{strict['f']:.9f}",
+            strict["converged"],
         ],
     ]
 
-    headers = ["Tolerance", "sigma_s", "sigma_r", "Cycles", "Nf", "MSE"]
+    headers = ["Tolerance", "sigma_s", "sigma_r", "Cycles", "Nf", "MSE", "Converged"]
     print_table(headers, rows)
     write_csv("outputs/lab3_experiment_tolerance.csv", headers, rows)
     return rows

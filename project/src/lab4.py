@@ -92,15 +92,20 @@ def check_gradient(noisy, lam, seed=168081):
     return abs(analytic - numeric) / max(1.0, abs(analytic), abs(numeric))
 
 
-def _golden_lambda(function, start=1.4817, eps=1e-4):
-    # Спочатку локалізуємо мінімум методом Свенна.
-    x0 = max(float(start), 1e-6)
+def _golden_lambda(function, start=1.4817, eps=1e-3):
+    lower, upper = 1e-4, 50.0
+
+    x0 = float(np.clip(start, lower, upper))
     delta = 0.2
+
     f0 = function(x0)
-    right = x0 + delta
+
+    right = min(x0 + delta, upper)
     fr = function(right)
-    left = max(1e-6, x0 - delta)
+
+    left = max(lower, x0 - delta)
     fl = function(left)
+
     if fr >= f0 and fl >= f0:
         a, b = left, right
     else:
@@ -109,20 +114,38 @@ def _golden_lambda(function, start=1.4817, eps=1e-4):
             previous, current, fc = x0, left, fl
         else:
             previous, current, fc = x0, right, fr
+
         for power in range(1, 30):
-            candidate = max(1e-6, current + delta * (2**power))
+            candidate = float(
+                np.clip(
+                    current + delta * (2**power),
+                    lower,
+                    upper,
+                )
+            )
+
             fn = function(candidate)
-            if fn >= fc or candidate <= 1e-6:
+
+            if (
+                fn >= fc
+                or candidate <= lower
+                or candidate >= upper
+            ):
                 a, b = sorted((previous, candidate))
                 break
+
             previous, current, fc = current, candidate, fn
         else:
             a, b = sorted((previous, current))
 
     tau = (math.sqrt(5.0) - 1.0) / 2.0
+
     x1 = a + (1.0 - tau) * (b - a)
     x2 = a + tau * (b - a)
-    f1, f2 = function(x1), function(x2)
+
+    f1 = function(x1)
+    f2 = function(x2)
+
     while b - a > eps:
         if f1 <= f2:
             b, x2, f2 = x2, x1, f1
@@ -132,8 +155,8 @@ def _golden_lambda(function, start=1.4817, eps=1e-4):
             a, x1, f1 = x1, x2, f2
             x2 = a + tau * (b - a)
             f2 = function(x2)
-    return (a + b) / 2.0
 
+    return (a + b) / 2.0
 
 def gradient_method(noisy, lam, lipschitz, kind="gd", beta=None, step=None,
                     max_iter=200, tol=1e-6, reference=None):
@@ -145,7 +168,7 @@ def gradient_method(noisy, lam, lipschitz, kind="gd", beta=None, step=None,
     rows = []
     converged = False
 
-    for k in range(1, max_iter + 1):
+    for k in range(1, max_iter + 2):
         if kind == "nag":
             momentum = (k - 1) / (k + 2) if beta is None else beta
             point = image + momentum * (image - previous)
@@ -182,10 +205,13 @@ def gradient_method(noisy, lam, lipschitz, kind="gd", beta=None, step=None,
         distance = (float(np.linalg.norm(image - reference))
                     if reference is not None else float("nan"))
         rows.append((k - 1, current_energy, grad_norm, h, n_f, n_grad, distance))
-
         if grad_norm <= tol:
             converged = True
             break
+
+        if k - 1 == max_iter:
+            break
+
         previous, image = image, new_image
 
     return {
@@ -193,7 +219,7 @@ def gradient_method(noisy, lam, lipschitz, kind="gd", beta=None, step=None,
         "iterations": len(rows) - 1,
         "n_f": n_f,
         "n_grad": n_grad,
-        "energy": energy(image, noisy, lam),
+        "energy": rows[-1][1],
         "grad": rows[-1][2],
         "converged": converged,
         "rows": rows,
@@ -227,6 +253,21 @@ def run_lab4(clean, noisy, lambda0=1.4817):
 
     adjoint_error = check_operators(noisy.shape)
     gradient_error = check_gradient(noisy, lam)
+    if (
+        not math.isfinite(adjoint_error)
+        or adjoint_error > 1e-12
+    ):
+        raise RuntimeError(
+            "Gradient/divergence adjoint check failed."
+        )
+
+    if (
+        not math.isfinite(gradient_error)
+        or gradient_error > 1e-6
+    ):
+        raise RuntimeError(
+            "Finite-difference gradient check failed."
+        )
     results = {
         "Gradient": gradient_method(noisy, lam, lipschitz, "gd", reference=reference),
         "Armijo": gradient_method(noisy, lam, lipschitz, "armijo", reference=reference),

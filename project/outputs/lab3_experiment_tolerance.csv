@@ -1,3 +1,3 @@
-Tolerance,sigma_s,sigma_r,Cycles,Nf,MSE
-1e-4,1.862026,0.279882,6,451,0.003562194
-1e-7,1.862012,0.279882,8,942,0.003562194
+Tolerance,sigma_s,sigma_r,Cycles,Nf,MSE,Converged
+1e-4,1.861989,0.279883,6,427,0.003562194,True
+1e-7,1.862031,0.279884,50,3485,0.003562194,False

@@ -9,7 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-
+from src.variant import NOISE_SIGMA, SIMPLEX_EDGE
 
 LO = np.array([0.3, 0.01], dtype=float)
 HI = np.array([5.0, 1.0], dtype=float)
@@ -83,7 +83,7 @@ def nelder_mead(function, x0, edge, tol=1e-7, max_iter=200):
     rows = []
     path = []
 
-    for iteration in range(max_iter):
+    for iteration in range(max_iter + 1):
         order = np.argsort(values)
         simplex, values = simplex[order], values[order]
         best, middle, worst = simplex
@@ -93,6 +93,9 @@ def nelder_mead(function, x0, edge, tol=1e-7, max_iter=200):
         rows.append((iteration, *best, fb, size, "sort"))
 
         if size <= tol and fw - fb <= tol:
+            break
+        if iteration == max_iter:
+            rows[-1] = (*rows[-1][:-1], "iteration limit")
             break
 
         center = (best + middle) / 2.0
@@ -130,6 +133,7 @@ def nelder_mead(function, x0, edge, tol=1e-7, max_iter=200):
     return {
         "x": simplex[order[0]].copy(),
         "f": float(values[order[0]]),
+        "converged": bool(size <= tol and fw - fb <= tol),
         "iterations": len(rows) - 1,
         "rows": rows,
         "path": np.asarray(path),
@@ -251,7 +255,12 @@ def _golden_line(function, x, direction, eps=1e-4):
 
     return (a + b) / 2.0
 
-def powell(function, x0, tol=1e-4, max_cycles=20):
+def powell(function, x0, tol=1e-4, max_cycles=50, line_eps=1e-4):
+    if not math.isfinite(tol) or tol <= 0.0: raise ValueError("Tol must be finite and positive.")
+
+    if not math.isfinite(line_eps) or line_eps <= 0.0: raise ValueError("Line_eps must be finite and positive.")
+
+    if not isinstance(max_cycles, int) or max_cycles < 1: raise ValueError( "Max_cycles must be a positive integer.")
     x = np.clip(np.asarray(x0, dtype=float), LO, HI)
 
     # Початкові координатні напрямки.
@@ -259,6 +268,7 @@ def powell(function, x0, tol=1e-4, max_cycles=20):
 
     rows = []
     path = [x.copy()]
+    converged = False
 
     for cycle in range(1, max_cycles + 1):
         cycle_start = x.copy()
@@ -274,7 +284,7 @@ def powell(function, x0, tol=1e-4, max_cycles=20):
                 function,
                 x,
                 direction,
-                eps=tol,
+                eps=line_eps,
             )
 
             x = np.clip(x + alpha * direction, LO, HI)
@@ -286,17 +296,33 @@ def powell(function, x0, tol=1e-4, max_cycles=20):
         # Новий напрямок Пауелла.
         shift = x - cycle_start
         shift_norm = np.linalg.norm(shift)
+        if (
+            shift_norm < tol
+            or abs(f_start - f_after)
+            <= 1e-12 * (1.0 + abs(f_after))
+        ):
+            f_end = f_after
 
+            rows.append(
+                (
+                    cycle,
+                    x[0],
+                    x[1],
+                    f_end,
+                    float(shift_norm),
+                )
+            )
+
+            converged = True
+            break
         if shift_norm > 1e-15:
-            new_direction = shift.copy()
+            new_direction = shift / shift_norm
 
-            # ВАЖЛИВО: додатковий лінійний пошук
-            # уздовж нового напрямку.
             alpha = _golden_line(
                 function,
                 x,
                 new_direction,
-                eps=tol,
+                eps=line_eps,
             )
 
             x = np.clip(
@@ -323,12 +349,6 @@ def powell(function, x0, tol=1e-4, max_cycles=20):
             )
         )
 
-        # Обидві умови мають виконуватися одночасно.
-        point_change = np.linalg.norm(x - cycle_start)
-        function_change = abs(f_start - f_end)
-
-        if point_change <= tol and function_change <= tol:
-            break
 
         # Перезапуск напрямків кожні три цикли.
         if cycle % 3 == 0:
@@ -336,8 +356,9 @@ def powell(function, x0, tol=1e-4, max_cycles=20):
 
     return {
         "x": x.copy(),
-        "f": float(function(x)),
+        "f": float(f_end),
         "cycles": len(rows),
+        "converged": converged,
         "rows": rows,
         "path": np.asarray(path),
     }
@@ -349,10 +370,10 @@ def _write_csv(path, header, rows):
         writer.writerows(rows)
 
 
-def run_lab3(clean, noisy, gaussian_sigma, simplex_edge=0.6976):
+def run_lab3(clean, noisy, gaussian_sigma, simplex_edge=SIMPLEX_EDGE,):
     Path("outputs").mkdir(exist_ok=True)
     sigma_s0 = float(np.clip(2.0 * gaussian_sigma, 0.5, 4.0))
-    sigma_r0 = float(np.clip(0.15 + 0.1 * 0.1449, 0.02, 0.9))
+    sigma_r0 = float(np.clip(0.15 + 0.1 * NOISE_SIGMA, 0.02, 0.9))
     x0 = np.array([sigma_s0, sigma_r0])
 
     objective_nm = Objective2(noisy, clean)
@@ -374,9 +395,9 @@ def run_lab3(clean, noisy, gaussian_sigma, simplex_edge=0.6976):
     _write_csv("outputs/lab3_powell.csv",
                ["cycle", "sigma_s", "sigma_r", "f", "shift_norm"], pw["rows"])
 
-    # Контурний графік обчислюємо на помірній сітці, щоб запуск не був надто довгим.
-    ss = np.linspace(0.5, 3.2, 28)
-    sr = np.linspace(0.05, 0.55, 28)
+
+    ss = np.linspace(LO[0], HI[0], 40)
+    sr = np.linspace(LO[1], HI[1], 40)
     zz = np.empty((len(sr), len(ss)))
     probe = Objective2(noisy, clean)
     for i, range_sigma in enumerate(sr):
@@ -401,6 +422,8 @@ def run_lab3(clean, noisy, gaussian_sigma, simplex_edge=0.6976):
           f"iterations = {nm['iterations']}, Nf = {nm['nf']}")
     print(f"Powell:      ({pw['x'][0]:.6f}; {pw['x'][1]:.6f}), "
           f"cycles = {pw['cycles']}, Nf = {pw['nf']}")
+    print(f"Nelder-Mead converged = {nm['converged']}")
+    print(f"Powell converged = {pw['converged']}")
     print(f"Best parameters = ({theta[0]:.6f}; {theta[1]:.6f})")
     print(f"Restored PSNR = {restored_psnr:.6f} dB")
     print("Saved image = outputs/03_bilateral.png")

@@ -6,6 +6,7 @@
 """
 
 import csv
+MAX_FILTER_SIGMA = 8.0
 from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
@@ -46,12 +47,16 @@ def create_objective(
     noisy: np.ndarray,
     clean: np.ndarray,
 ):
-    """Створює цільову функцію MSE."""
 
     def objective(sigma: float) -> float:
-        valid_sigma = max(
-            MIN_FILTER_SIGMA,
-            float(sigma),
+        sigma = float(sigma)
+
+        valid_sigma = float(
+            np.clip(
+                sigma,
+                MIN_FILTER_SIGMA,
+                MAX_FILTER_SIGMA,
+            )
         )
 
         restored = gaussian_blur(
@@ -59,7 +64,9 @@ def create_objective(
             valid_sigma,
         )
 
-        return mse(restored, clean)
+        penalty = 1000.0 * (sigma - valid_sigma) ** 2
+
+        return mse(restored, clean) + penalty
 
     return objective
 
@@ -73,7 +80,7 @@ def _evaluate(
     direction: int,
     action: str,
 ) -> tuple[float, float]:
-    sigma = max(MIN_FILTER_SIGMA, sigma)
+    sigma = float( np.clip( sigma, MIN_FILTER_SIGMA, MAX_FILTER_SIGMA,))
     value = oracle.value(sigma)
 
     rows.append(
@@ -159,13 +166,30 @@ def svenn(
     iterations = 0
 
     while iterations < 100:
-        iterations += 1
-        delta *= 2.0
+        next_delta = 2.0 * delta
 
-        next_point = max(
-            MIN_FILTER_SIGMA,
-            current + delta,
+        next_point = float(
+            np.clip(
+                current + next_delta,
+                MIN_FILTER_SIGMA,
+                MAX_FILTER_SIGMA,
+            )
         )
+
+        if next_point == current:
+            rows[-1].action += "; boundary reached: STOP"
+
+            return SvennResult(
+                a=min(previous, current),
+                b=max(previous, current),
+                evaluations=oracle.calls,
+                iterations=iterations,
+                direction=direction,
+                rows=rows,
+            )
+
+        iterations += 1
+        delta = next_delta
 
         next_value = oracle.value(next_point)
 
@@ -298,7 +322,7 @@ def save_lab1_results(
 
     sigmas = np.linspace(
         MIN_FILTER_SIGMA,
-        max(3.0, result.b),
+        MAX_FILTER_SIGMA,
         200,
     )
 

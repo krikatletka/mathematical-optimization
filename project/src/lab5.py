@@ -59,7 +59,7 @@ def projected_gradient(
     rows = []
     converged = False
 
-    for iteration in range(1, max_iterations + 1):
+    for iteration in range(1, max_iterations + 2):
         point = extrapolated if accelerated else image
 
         gradient = energy_grad(
@@ -110,7 +110,9 @@ def projected_gradient(
 
         if gradient_mapping <= tolerance:
             converged = True
-            image = new_image
+            break
+
+        if iteration - 1 == max_iterations:
             break
 
         if accelerated:
@@ -130,7 +132,7 @@ def projected_gradient(
         "iterations": len(rows) - 1,
         "n_f": function_calls,
         "n_grad": gradient_calls,
-        "energy": energy(image, raw, lam),
+        "energy": rows[-1]["E"],
         "gradient_mapping": rows[-1]["G"],
         "converged": converged,
         "rows": rows,
@@ -253,7 +255,7 @@ def penalty_method(
         "outer_iterations": len(rows),
         "n_f": function_calls,
         "n_grad": gradient_calls,
-        "energy": energy(image, raw, lam),
+        "energy": rows[-1]["E"],
         "rows": rows,
     }
 
@@ -718,28 +720,21 @@ def run_lab5(clean, raw_noisy, lambda_value):
     )
 
     print("\nEXPERIMENT 2 - PENALTY GROWTH")
-    print(
-        f"growth = 2: outside = "
-        f"{violation(growth_2['image'])['count']}, "
-        f"violation = "
-        f"{violation(growth_2['image'])['max']:.9e}, "
-        f"calls = {growth_2['n_f'] + growth_2['n_grad']}"
-    )
-    print(
-        f"growth = 10: outside = "
-        f"{violation(penalty_result['image'])['count']}, "
-        f"violation = "
-        f"{violation(penalty_result['image'])['max']:.9e}, "
-        f"calls = "
-        f"{penalty_result['n_f'] + penalty_result['n_grad']}"
-    )
-    print(
-        f"growth = 100: outside = "
-        f"{violation(growth_100['image'])['count']}, "
-        f"violation = "
-        f"{violation(growth_100['image'])['max']:.9e}, "
-        f"calls = {growth_100['n_f'] + growth_100['n_grad']}"
-    )
+    for growth, result in (
+        (2, growth_2),
+        (10, penalty_result),
+        (100, growth_100),
+    ):
+        current_violation = violation(result["image"])
+        calls = result["n_f"] + result["n_grad"]
+
+        print(
+            f"growth = {growth}: "
+            f"outer iterations = {result['outer_iterations']}, "
+            f"outside = {current_violation['count']}, "
+            f"violation = {current_violation['max']:.9e}, "
+            f"calls = {calls}"
+        )
 
     print("\nLAB 5 - FINAL RESULT")
     print(

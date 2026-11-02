@@ -1,5 +1,6 @@
 Part,Svenn,Golden,Checks,Total
 Direction 1,7,23,2,32
 Direction 2,4,19,2,25
+New direction,5,21,0,26
 Cycle start/end,0,0,2,2
-TOTAL,11,42,6,59
+TOTAL,16,63,6,85
