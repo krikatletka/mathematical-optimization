@@ -1,0 +1,3 @@
+﻿Case;delta;Iterations;Nf;Final_length;Length_minus_epsilon;Converged
+delta = epsilon / 3;3.3333333333333335e-05;15;31;7.36155192057053e-05;-2.63844807942947e-05;True
+delta = epsilon;0.0001;500;1001;0.00010000000000010001;1.0000409788463172e-16;False

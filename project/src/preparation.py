@@ -90,7 +90,7 @@ def prepare_project() -> ProjectData:
         f"maximum rounding error = {max_save_error:.9e}"
     )
 
-    print("\nSource image = input/00_clean.png")
+    print("\nSource image = generated clean image")
     print(
         
     )
