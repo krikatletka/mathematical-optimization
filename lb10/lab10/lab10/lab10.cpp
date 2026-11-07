@@ -211,17 +211,7 @@ Result hookeJeeves(const Function& rawFunction, Vector start, double delta0 = 1.
         }
     }
 
-    return {
-        base,
-        baseValue,
-        delta,
-        iteration,
-        bases,
-        function.calls,
-        delta < epsilon,
-        rows,
-        function.values
-    };
+    return {base, baseValue, delta, iteration, bases,  function.calls,  delta < epsilon, rows, function.values };
 }
 
 std::string formatPoint(const Vector& point) {
