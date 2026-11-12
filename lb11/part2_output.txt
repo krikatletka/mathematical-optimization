@@ -1,0 +1,58 @@
+LABORATORY WORK 11 - PART 2
+PENALTY AND BARRIER METHOD EXPERIMENTS
+Control problem: F=2*x1^2+3*x2^2+x1*x2, start=(5;-3)
+
+EXPERIMENT 1 - PENALTY MULTIPLIER c
+c=2                            outer=13 Nphi=   884 Ngrad=   41 x=(2.497899; 1.500697) F=  22.983867 violation=1.404e-03
+c=4                            outer= 7 Nphi=   582 Ngrad=   26 x=(2.498597; 1.499999) F=  22.983866 violation=1.403e-03
+c=10                           outer= 5 Nphi=   433 Ngrad=   19 x=(2.498995; 1.500430) F=  22.993390 violation=5.750e-04
+c=100                          outer= 3 Nphi=   356 Ngrad=   15 x=(2.499642; 1.499783) F=  22.993389 violation=5.749e-04
+
+EXPERIMENT 2 - INNER ACCURACY
+inner eps=0.1                  outer= 5 Nphi=   309 Ngrad=   15 x=(2.487286; 1.512137) F=  22.993982 violation=5.764e-04
+inner eps=0.01                 outer= 5 Nphi=   433 Ngrad=   19 x=(2.498995; 1.500430) F=  22.993390 violation=5.750e-04
+inner eps=0.001                outer= 5 Nphi=   515 Ngrad=   22 x=(2.499640; 1.499785) F=  22.993389 violation=5.749e-04
+
+EXPERIMENT 3 - EQUALITY h(x)=4-x1-x2=0
+equality                       outer= 5 Nphi=   435 Ngrad=   19 x=(2.498995; 1.500430) F=  22.993390 violation=5.749e-04
+
+EXPERIMENT 4 - LOGARITHMIC BARRIER
+Strictly feasible start = (5;1)
+mu= 10.0000 x=(2.959134; 1.775475) F= 32.223744 g=-7.346085e-01 lambda_est=1.361269e+01
+mu=  1.0000 x=(2.553214; 1.531928) F= 23.989560 g=-8.514253e-02 lambda_est=1.174501e+01
+mu=  0.1000 x=(2.505582; 1.503095) F= 23.099893 g=-8.676937e-03 lambda_est=1.152480e+01
+mu=  0.0100 x=(2.501678; 1.499192) F= 23.010005 g=-8.694251e-04 lambda_est=1.150185e+01
+log barrier                    outer= 4 Nphi=   468 Ngrad=   19 x=(2.501678; 1.499192) F=  23.010005 violation=8.694e-04
+
+EXPERIMENT 5 - TWO INEQUALITIES
+g1 and g2                      outer= 5 Nphi=   508 Ngrad=   23 x=(2.999150; 1.000200) F=  23.990751 violation=6.500e-04
+Control: x*=(3;1), F*=24, lambda=(13;4)
+Estimated lambda = (1.300e+01; 4.003e+00)
+
+EXPERIMENT 6 - NONLINEAR BOUNDARY, OUTSIDE CIRCLE R=3
+circle start (5,-3)            outer= 3 Nphi=   245 Ngrad=   11 x=(2.770187; -1.147650) F=  16.119966 violation=8.965e-03
+circle start (-5,3)            outer= 3 Nphi=   245 Ngrad=   11 x=(-2.770187; 1.147650) F=  16.119966 violation=8.965e-03
+Control: ||x*||=3, F*=16.136, two symmetric minima
+
+EXPERIMENT 7 - INNER METHOD AT r=100
+Fletcher-Reeves: iterations=3 Nphi=94 Ngrad=4 x=(2.464688; 1.478628)
+Spherical gradient: iterations=446 Nphi=455 Ngrad=447 x=(2.466331; 1.476993)
+
+EXPERIMENT 8 - SUMMARY
++------------------------------+-------+--------+-------+-------------------------+------------+------------+
+| Experiment                   | Outer | Nphi   | Ngrad | x                       | F          | violation  |
++------------------------------+-------+--------+-------+-------------------------+------------+------------+
+| c=2                          |    13 |    884 |    41 | (2.49790; 1.50070)      |   22.98387 |  1.404e-03 |
+| c=4                          |     7 |    582 |    26 | (2.49860; 1.50000)      |   22.98387 |  1.403e-03 |
+| c=10                         |     5 |    433 |    19 | (2.49900; 1.50043)      |   22.99339 |  5.750e-04 |
+| c=100                        |     3 |    356 |    15 | (2.49964; 1.49978)      |   22.99339 |  5.749e-04 |
+| inner eps=0.1                |     5 |    309 |    15 | (2.48729; 1.51214)      |   22.99398 |  5.764e-04 |
+| inner eps=0.01               |     5 |    433 |    19 | (2.49900; 1.50043)      |   22.99339 |  5.750e-04 |
+| inner eps=0.001              |     5 |    515 |    22 | (2.49964; 1.49978)      |   22.99339 |  5.749e-04 |
+| equality                     |     5 |    435 |    19 | (2.49900; 1.50043)      |   22.99339 |  5.749e-04 |
+| log barrier                  |     4 |    468 |    19 | (2.50168; 1.49919)      |   23.01000 |  8.694e-04 |
+| two inequalities             |     5 |    508 |    23 | (2.99915; 1.00020)      |   23.99075 |  6.500e-04 |
+| circle positive start        |     3 |    245 |    11 | (2.77019; -1.14765)     |   16.11997 |  8.965e-03 |
+| circle negative start        |     3 |    245 |    11 | (-2.77019; 1.14765)     |   16.11997 |  8.965e-03 |
++------------------------------+-------+--------+-------+-------------------------+------------+------------+
+Saved summary for plots: outputs/part2_summary.csv
